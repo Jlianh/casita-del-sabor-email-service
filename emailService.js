@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
  */
 async function sendEmailWithAttachment({ to, subject, html, attachments = [] }) {
   const info = await transporter.sendMail({
-    from: `"Spice Co." <${process.env.SMTP_USER}>`,
+    from: `"Casita del Sabor" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html,
