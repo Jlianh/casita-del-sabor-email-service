@@ -194,7 +194,7 @@ async function generateQuotationPDF({
   // ── TABLE HEADER ──────────────────────────────────────────────────────────
   page.drawRectangle({ x: M, y: y - 6, width: INNER, height: 22, color: C.yellow });
   page.drawText('Producto', { x: COL_NAME, y: y + 2, size: 8.5, font: fontBold, color: C.dark });
-  page.drawText('Gramaje',  { x: COL_GRAM, y: y + 2, size: 8.5, font: fontBold, color: C.dark });
+  page.drawText('Gramaje',  { x: COL_GRAM, y: y + 4, size: 8.5, font: fontBold, color: C.dark });
   page.drawText('Cantidad', { x: COL_QTY,  y: y + 2, size: 8.5, font: fontBold, color: C.dark });
   y -= 8;
   hLine(page, M, y, PW - M, C.red, 1.5);
@@ -231,7 +231,7 @@ async function generateQuotationPDF({
     const midY     = rowBot + ROW_H / 2;
     page.drawText(nameText, { x: COL_NAME, y: midY + 7,  size: 10, font: fontBold, color: C.dark });
     page.drawText('Ref. #' + item.productId, { x: COL_NAME, y: midY - 8, size: 7.5, font: fontReg, color: C.mid });
-    page.drawText(item.grammage, { x: COL_GRAM, y: midY, size: 18, font: fontReg, color: C.dark });
+    page.drawText(item.grammage, { x: COL_GRAM, y: midY, size: 10, font: fontReg, color: C.dark });
     page.drawText(item.quantity + ' uds.', { x: COL_QTY, y: midY, size: 10, font: fontBold, color: C.red });
 
     hLine(page, M, rowBot, PW - M, C.border);
