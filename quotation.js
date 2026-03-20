@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
   });
 
   await sendEmailWithAttachment({
-    to: clientEmail,
+    to: [clientEmail, "lacasitadelsabor@yahoo.com"],
     subject: `Tu cotizacion ${quotationNumber}`,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:auto;color:#222;">
