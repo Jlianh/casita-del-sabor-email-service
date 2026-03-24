@@ -9,7 +9,7 @@ const authRoutes      = require('./auth');
 
 const app = express();
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:4200', // Adjust for your Angular app URL
+  origin: process.env.FRONTEND_URL || 'http://localhost:4200' || 'https://www.lacasitadelsabor.com', // Adjust for your Angular app URL
   credentials: true // Allow credentials (cookies)
 }));
 app.use(cookieParser());
