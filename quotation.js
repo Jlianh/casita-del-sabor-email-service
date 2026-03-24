@@ -228,20 +228,20 @@ router.post('/bill', async (req, res) => {
 
   await sendEmailWithAttachment({
     to: [clientEmail, 'lacasitadelsabor@yahoo.com'],
-    subject: `Factura ${billNumber}`,
-    html: `<p>Adjunto encontrará la factura ${billNumber}.</p>`,
-    attachments: [{ filename: `${billNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
+    subject: `Remision ${remisionNumber}`,
+    html: `<p>Adjunto encontrará la remision ${remisionNumber}.</p>`,
+    attachments: [{ filename: `${remisionNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
   });
 
   if (req.query.download === 'true') {
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${billNumber}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${remisionNumber}.pdf"`);
     return res.send(pdfBuffer);
   }
 
   res.json({
-    message: `Factura ${billNumber} enviada a ${clientEmail}`,
-    billNumber,
+    message: `Remision ${remisionNumber} enviada a ${clientEmail}`,
+    remisionNumber,
     totals: computed,
   });
 });
