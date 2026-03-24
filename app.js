@@ -8,9 +8,20 @@ const quotationRoutes = require('./quotation');
 const authRoutes      = require('./auth');
 
 const app = express();
+const allowedOrigins = [
+  'http://localhost:4200',
+  'https://www.lacasitadelsabor.com'
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:4200' || 'https://www.lacasitadelsabor.com', // Adjus for your Angular app URL
-  credentials: true // Allow credentials (cookies)
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS blocked'));
+    }
+  },
+  credentials: true
 }));
 app.use(cookieParser());
 app.use(express.json());
