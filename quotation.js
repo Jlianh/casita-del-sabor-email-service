@@ -1,6 +1,6 @@
 const express = require('express');
-const router  = express.Router();
-const { generateQuotationPDF }    = require('./pdfService');
+const router = express.Router();
+const { generateQuotationPDF, generateBillPDF } = require('./pdfService');
 const { sendEmailWithAttachment } = require('./emailService');
 
 /**
@@ -19,14 +19,18 @@ const { sendEmailWithAttachment } = require('./emailService');
  * }
  */
 function validate(body) {
-  const { clientName, clientEmail, quotationItems } = body;
-  if (!clientName)  return 'clientName is required';
+  const { clientName, clientEmail, clientAddress, clientCity, clientId, quotationItems, clientPhone } = body;
+  if (!clientName) return 'clientName is required';
   if (!clientEmail) return 'clientEmail is required';
+  if (!clientAddress) return 'clientAddress is required';
+  if (!clientCity) return 'clientCity is required';
+  if (!clientId) return 'clientId is required';
+  if (!clientPhone) return 'clientPhone is required';
   if (!Array.isArray(quotationItems) || quotationItems.length === 0)
     return 'quotationItems must be a non-empty array';
   for (const [i, item] of quotationItems.entries()) {
-    if (!item.name)        return `quotationItems[${i}].name is required`;
-    if (!item.grammage)    return `quotationItems[${i}].grammage is required`;
+    if (!item.name) return `quotationItems[${i}].name is required`;
+    if (!item.grammage) return `quotationItems[${i}].grammage is required`;
     if (item.quantity == null) return `quotationItems[${i}].quantity is required`;
   }
   return null;
@@ -44,8 +48,7 @@ router.post('/', async (req, res) => {
   if (err) return res.status(400).json({ error: err });
 
   const {
-    clientName, clientCompany, clientEmail,
-    clientAddress, clientPhone,
+   clientName, clientEmail, clientAddress, clientCity, clientId,  clientPhone,
     createdAt = today(),
     quotationItems,
   } = req.body;
@@ -53,9 +56,8 @@ router.post('/', async (req, res) => {
   const quotationNumber = `COT-${Date.now()}`;
 
   const pdfBuffer = await generateQuotationPDF({
-    clientName, clientCompany, clientEmail,
-    clientAddress, clientPhone,
-    createdAt, quotationNumber, quotationItems,
+    clientName, clientEmail, clientAddress, clientCity, clientId, quotationItems, clientPhone, createdAt,
+    quotationNumber, quotationItems,
   });
 
   await sendEmailWithAttachment({
@@ -101,15 +103,14 @@ router.post('/preview', async (req, res) => {
   if (err) return res.status(400).json({ error: err });
 
   const {
-    clientName, clientCompany, clientEmail,
-    clientAddress, clientPhone,
-    createdAt = today(),
+    clientName, clientEmail, clientAddress, clientCity, clientId, clientPhone,
+    createdAt = today(), 
     quotationItems,
   } = req.body;
 
   const pdfBuffer = await generateQuotationPDF({
     clientName, clientCompany, clientEmail,
-    clientAddress, clientPhone,
+    clientAddress, clientPhone, clientId, clientCity,
     createdAt,
     quotationNumber: `PREVIEW-${Date.now()}`,
     quotationItems,
@@ -117,6 +118,166 @@ router.post('/preview', async (req, res) => {
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+  res.send(pdfBuffer);
+});
+
+function normalizePct(value) {
+  if (value == null || Number.isNaN(Number(value))) return 0;
+  const n = Number(value);
+  return n <= 1 ? n : n / 100;
+}
+
+function calculateBill(bill) {
+
+  const items = bill.billItems || [];
+
+  const normalizedItems = items.map((item) => {
+
+    const quantity = Number(item.quantity) || 0;
+    const unitaryPrice = Number(item.unitaryPrice) || 0;
+
+    const ivaPct = normalizePct(item.iva);
+
+    // 🔥 FIX CLAVE
+    const discountPct = item.discount;
+
+    const base = quantity * unitaryPrice;
+
+    const discountValue = base * discountPct/100;
+    const baseAfterDiscount = base - discountValue;
+
+    const ivaValue = baseAfterDiscount * ivaPct;
+
+    const totalPrice = baseAfterDiscount + ivaValue;
+
+    return {
+      ...item,
+      base,
+      discountValue,
+      ivaValue,
+      totalPrice,
+    };
+  });
+
+  const subtotal = normalizedItems.reduce((sum, i) => sum + i.base, 0);
+  const discount = normalizedItems.reduce((sum, i) => sum + i.discountValue, 0);
+  const totalIva = normalizedItems.reduce((sum, i) => sum + i.ivaValue, 0);
+  const totalOperation = normalizedItems.reduce((sum, i) => sum + i.totalPrice, 0);
+
+  const reteFuente = totalOperation * normalizePct(bill.reteFuente/100);
+  const reteica = totalOperation * normalizePct(bill.reteica/1000);
+
+  const totalLessRetentions = totalOperation - reteFuente - reteica;
+
+  return {
+    billItems: normalizedItems,
+    subtotal,
+    discount,
+    totalIva,
+    totalOperation,
+    reteFuente,
+    reteica,
+    totalLessRetentions,
+  };
+}
+
+function validateBill(body) {
+  if (!body.clientName) return 'clientName is required';
+  if (!body.clientEmail) return 'clientEmail is required';
+  if (!body.clientId) return 'clientId is required';
+  if (!body.createdBy) return 'createdBy is required';
+
+  if (!Array.isArray(body.billItems) || body.billItems.length === 0) return 'billItems must be a non-empty array';
+  for (const [i, item] of body.billItems.entries()) {
+    if (!item.name) return `billItems[${i}].name is required`;
+    if (item.quantity == null) return `billItems[${i}].quantity is required`;
+    if (item.unitaryPrice == null) return `billItems[${i}].unitaryPrice is required`;
+  }
+  return null;
+}
+
+// ── POST /api/bill ─────────────────────────────────────────────────────────
+router.post('/bill', async (req, res) => {
+  const err = validateBill(req.body);
+  if (err) return res.status(400).json({ error: err });
+
+  const {
+    clientName, clientCity, clientEmail,
+    clientAddress, clientPhone, clientId,
+    createdAt = today(),
+    billItems, createdBy, remisionNumber
+  } = req.body;
+
+  const billNumber = `FACT-${Date.now()}`;
+  const computed = calculateBill({ ...req.body, billItems });
+
+  const pdfBuffer = await generateBillPDF({
+    clientName, clientCity, clientEmail,
+    clientAddress, clientPhone, clientId, createdAt,
+    billNumber, createdBy, remisionNumber,
+    billItems: computed.billItems,
+    subtotal: computed.subtotal,
+    discount: computed.discount,
+    totalIva: computed.totalIva,
+    totalOperation: computed.totalOperation,
+    reteFuente: computed.reteFuente,
+    reteIva: computed.reteIva,
+    reteica: computed.reteica,
+    totalLessRetentions: computed.totalLessRetentions,
+  });
+
+  await sendEmailWithAttachment({
+    to: [clientEmail, 'lacasitadelsabor@yahoo.com'],
+    subject: `Factura ${billNumber}`,
+    html: `<p>Adjunto encontrará la factura ${billNumber}.</p>`,
+    attachments: [{ filename: `${billNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
+  });
+
+  if (req.query.download === 'true') {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${billNumber}.pdf"`);
+    return res.send(pdfBuffer);
+  }
+
+  res.json({
+    message: `Factura ${billNumber} enviada a ${clientEmail}`,
+    billNumber,
+    totals: computed,
+  });
+});
+
+// ── POST /api/bill/preview ──────────────────────────────────────────────────
+router.post('/bill/preview', async (req, res) => {
+  const err = validateBill(req.body);
+  if (err) return res.status(400).json({ error: err });
+
+  const {
+    clientName, clientCompany, clientEmail,
+    clientAddress, clientPhone, clientId,
+    createdAt = today(), createdBy,
+    billItems,
+  } = req.body;
+
+  const billNumber = `PREVIEW-${Date.now()}`;
+  const computed = calculateBill({ ...req.body, billItems });
+
+  const pdfBuffer = await generateBillPDF({
+    clientName, clientCompany, clientEmail,
+    clientAddress, clientPhone, clientId, createdAt, createdBy, 
+    billNumber,
+    billItems: computed.billItems,
+    subtotal: computed.subtotal,
+    discount: computed.discount,
+    totalIva: computed.totalIva,
+    totalOperation: computed.totalOperation,
+    reteFuente: computed.reteFuente,
+    reteIva: computed.reteIva,
+    reteica: computed.reteica,
+    totalLessRetentions: computed.totalLessRetentions,
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="preview-bill.pdf"');
   res.send(pdfBuffer);
 });
 
@@ -129,7 +290,7 @@ router.get('/debug-image', async (req, res) => {
   if (!imageName) return res.status(400).json({ error: 'imageName query param required' });
 
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const folder    = process.env.CLOUDINARY_FOLDER || 'spice-products';
+  const folder = process.env.CLOUDINARY_FOLDER || 'spice-products';
 
   if (!cloudName) return res.status(500).json({ error: 'CLOUDINARY_CLOUD_NAME not set' });
 

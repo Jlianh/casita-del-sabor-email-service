@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
 // ── Logo (PNG with transparency, black bg removed) embedded as base64 ─────────
@@ -59,7 +61,7 @@ async function embedProductImage(pdfDoc, url) {
     }
   } else {
     // jpeg / webp / anything else — try jpg first then png as fallback
-    try { return await pdfDoc.embedJpg(buffer); } catch (_) {}
+    try { return await pdfDoc.embedJpg(buffer); } catch (_) { }
     try { return await pdfDoc.embedPng(buffer); } catch (e) {
       console.error(`[pdfService] embedPng fallback failed: ${e.message}`);
     }
@@ -77,7 +79,7 @@ function hLine(page, x1, y, x2, color, thickness = 0.5) {
 /**
  * @param {{
  *   clientName, clientCompany, clientEmail,
- *   clientAddress, clientPhone, createdAt,
+ *   clientAddress, clientPhone, clientId, createdAt,
  *   quotationNumber,
  *   quotationItems: Array<{
  *     productId, name, grammage, quantity,
@@ -87,38 +89,38 @@ function hLine(page, x1, y, x2, color, thickness = 0.5) {
  * }} opts
  */
 async function generateQuotationPDF({
-  clientName, clientCompany, clientEmail,
-  clientAddress, clientPhone, createdAt,
+  clientName, clientCity, clientEmail,
+  clientAddress, clientPhone, clientId, createdAt,
   quotationNumber, quotationItems,
 }) {
   const pdfDoc = await PDFDocument.create();
 
-  const fontReg  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   const C = {
-    red:    rgb(0.78, 0.08, 0.08),
+    red: rgb(0.78, 0.08, 0.08),
     yellow: rgb(0.98, 0.82, 0.10),
-    dark:   rgb(0.12, 0.12, 0.12),
-    mid:    rgb(0.42, 0.42, 0.42),
-    light:  rgb(0.98, 0.98, 0.98),
+    dark: rgb(0.12, 0.12, 0.12),
+    mid: rgb(0.42, 0.42, 0.42),
+    light: rgb(0.98, 0.98, 0.98),
     stripe: rgb(0.995, 0.995, 0.995),
     border: rgb(0.83, 0.83, 0.83),
-    white:  rgb(1, 1, 1),
+    white: rgb(1, 1, 1),
   };
 
-  const PW    = 595; const PH = 842;
-  const M     = 45;  const INNER = PW - M * 2;
-  const COL_IMG  = M;
+  const PW = 595; const PH = 842;
+  const M = 45; const INNER = PW - M * 2;
+  const COL_IMG = M;
   const COL_NAME = M + 70;
   const COL_GRAM = M + 330;
-  const COL_QTY  = M + 430;
-  const ROW_H    = 68;
+  const COL_QTY = M + 430;
+  const ROW_H = 68;
   const IMG_SLOT = 56;
 
   // ── Embed logo (PNG with alpha) ───────────────────────────────────────────
-  const logoBuf  = Buffer.from(LOGO_BASE64, 'base64');
-  const logoImg  = await pdfDoc.embedPng(logoBuf);
+  const logoBuf = Buffer.from(LOGO_BASE64, 'base64');
+  const logoImg = await pdfDoc.embedPng(logoBuf);
   const logoDims = logoImg.scaleToFit(72, 64);
 
   // ── Pre-fetch unique product images ──────────────────────────────────────
@@ -146,7 +148,7 @@ async function generateQuotationPDF({
   }
 
   let page = newPage();
-  let y    = PH - M;
+  let y = PH - M;
 
   // ── HEADER ────────────────────────────────────────────────────────────────
   const HEADER_H = 80;
@@ -175,9 +177,11 @@ async function generateQuotationPDF({
 
   // ── CLIENT BLOCK ──────────────────────────────────────────────────────────
   const rightX = M + INNER / 2 + 10;
-  page.drawText(clientName, { x: M, y, size: 14, font: fontBold, color: C.dark });
+  page.drawText(`Cliente: ${clientName}`, { x: M, y, size: 14, font: fontBold, color: C.dark });
   y -= 16;
-  page.drawText(clientCompany || '', { x: M, y, size: 10, font: fontReg, color: C.mid });
+  page.drawText(`Ciudad: ${clientCity || ''}`, { x: M, y, size: 10, font: fontReg, color: C.mid });
+  y -= 18;
+  page.drawText(`C.C | NIT: ${clientId || ''}`, { x: M, y, size: 10, font: fontReg, color: C.mid });
   y -= 18;
   page.drawText('Email:', { x: M, y, size: 8, font: fontBold, color: C.mid });
   page.drawText(clientEmail || '-', { x: M + 34, y, size: 9, font: fontReg, color: C.dark });
@@ -194,17 +198,17 @@ async function generateQuotationPDF({
   // ── TABLE HEADER ──────────────────────────────────────────────────────────
   page.drawRectangle({ x: M, y: y - 6, width: INNER, height: 22, color: C.yellow });
   page.drawText('Producto', { x: COL_NAME, y: y + 2, size: 8.5, font: fontBold, color: C.dark });
-  page.drawText('Gramaje',  { x: COL_GRAM, y: y + 4, size: 8.5, font: fontBold, color: C.dark });
-  page.drawText('Cantidad', { x: COL_QTY,  y: y + 2, size: 8.5, font: fontBold, color: C.dark });
+  page.drawText('Gramaje', { x: COL_GRAM, y: y + 4, size: 8.5, font: fontBold, color: C.dark });
+  page.drawText('Cantidad', { x: COL_QTY, y: y + 2, size: 8.5, font: fontBold, color: C.dark });
   y -= 8;
   hLine(page, M, y, PW - M, C.red, 1.5);
   y -= 4;
 
   // ── PRODUCT ROWS ──────────────────────────────────────────────────────────
   for (let i = 0; i < quotationItems.length; i++) {
-    const item   = quotationItems[i];
+    const item = quotationItems[i];
     const imgUrl = resolvedUrls[i];
-    const img    = imgUrl ? (urlCache[imgUrl] || null) : null;
+    const img = imgUrl ? (urlCache[imgUrl] || null) : null;
 
     if (y - ROW_H < 60) { page = newPage(); y = PH - M; }
 
@@ -216,8 +220,8 @@ async function generateQuotationPDF({
     if (img) {
       const dims = img.scaleToFit(IMG_SLOT, IMG_SLOT);
       page.drawImage(img, {
-        x: COL_IMG + (64 - dims.width)  / 2,
-        y: rowBot  + (ROW_H - dims.height) / 2,
+        x: COL_IMG + (64 - dims.width) / 2,
+        y: rowBot + (ROW_H - dims.height) / 2,
         width: dims.width, height: dims.height,
       });
     } else {
@@ -228,8 +232,8 @@ async function generateQuotationPDF({
     }
 
     const nameText = item.name.length > 36 ? item.name.slice(0, 34) + '...' : item.name;
-    const midY     = rowBot + ROW_H / 2;
-    page.drawText(nameText, { x: COL_NAME, y: midY + 7,  size: 10, font: fontBold, color: C.dark });
+    const midY = rowBot + ROW_H / 2;
+    page.drawText(nameText, { x: COL_NAME, y: midY + 7, size: 10, font: fontBold, color: C.dark });
     page.drawText('Ref. #' + item.productId, { x: COL_NAME, y: midY - 8, size: 7.5, font: fontReg, color: C.mid });
     page.drawText(item.grammage, { x: COL_GRAM, y: midY, size: 10, font: fontReg, color: C.dark });
     page.drawText(item.quantity + ' uds.', { x: COL_QTY, y: midY, size: 10, font: fontBold, color: C.red });
@@ -247,8 +251,8 @@ async function generateQuotationPDF({
   page.drawRectangle({ x: M, y: y - 32, width: 4, height: 40, color: C.yellow });
   page.drawText('Total de referencias:', { x: M + 14, y: y - 10, size: 9.5, font: fontReg, color: C.dark });
   page.drawText(String(quotationItems.length), { x: COL_QTY, y: y - 10, size: 11, font: fontBold, color: C.red });
-  page.drawText('Total de unidades:',    { x: M + 14, y: y - 24, size: 9.5, font: fontReg, color: C.dark });
-  page.drawText(String(totalUnits),       { x: COL_QTY, y: y - 24, size: 11, font: fontBold, color: C.red });
+  page.drawText('Total de unidades:', { x: M + 14, y: y - 24, size: 9.5, font: fontReg, color: C.dark });
+  page.drawText(String(totalUnits), { x: COL_QTY, y: y - 24, size: 11, font: fontBold, color: C.red });
 
   // ── NOTES ─────────────────────────────────────────────────────────────────
   y -= 58;
@@ -268,4 +272,182 @@ async function generateQuotationPDF({
   return Buffer.from(await pdfDoc.save());
 }
 
-module.exports = { generateQuotationPDF };
+/**
+ * Generate billing PDF — layout matches the physical La Casita del Sabor invoice.
+ *
+ * billItems: [{ code, name, grammage, quantity, unitaryPrice, totalPrice, iva? }]
+ * Financial fields: subtotal, discount, totalIva, totalOperation,
+ *                   reteFuente, reteIva, reteica, totalLessRetentions
+ */
+async function generateBillPDF(data) {
+
+  const {
+    clientName, clientEmail,
+    clientAddress, clientPhone, clientId, clientCity,
+    createdAt, createdBy, remisionNumber, billItems,
+    subtotal, discount, totalIva,
+    totalOperation, reteFuente, reteica, totalLessRetentions,
+  } = data;
+
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]);
+  const { width, height } = page.getSize();
+
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  // LOGO
+  const logoPath = path.join(__dirname, 'assets/logo.png');
+  const logoBytes = fs.readFileSync(logoPath);
+  const logo = await pdfDoc.embedPng(logoBytes);
+  const logoDims = logo.scale(0.25);
+
+  const COLORS = {
+    primary: rgb(0.75, 0.1, 0.1),
+    gray: rgb(0.95, 0.95, 0.95),
+    white: rgb(1, 1, 1),
+  };
+
+  // HEADER
+  page.drawImage(logo, {
+    x: 50,
+    y: height - 80,
+    width: logoDims.width,
+    height: logoDims.height,
+  });
+
+  page.drawText('LA CASITA DEL SABOR S.A.S', {
+    x: 150, y: height - 40, size: 12, font: bold,
+  });
+
+  page.drawText(`Remision: ${remisionNumber}`, {
+    x: width - 200, y: height - 40, size: 10, font: bold,
+  });
+
+  page.drawText(`Fecha: ${createdAt}`, {
+    x: width - 200, y: height - 55, size: 9, font,
+  });
+
+  // CLIENTE
+  let y = height - 110;
+
+  page.drawRectangle({
+    x: 50,
+    y: y - 70,
+    width: width - 100,
+    height: 70,
+    color: COLORS.gray,
+  });
+
+  page.drawText(`Cliente: ${clientName}`, { x: 55, y: y - 15, size: 9, font });
+  page.drawText(`NIT: ${clientId}`, { x: 55, y: y - 30, size: 9, font });
+  page.drawText(`Teléfono: ${clientPhone}`, {
+    x: 55, y: y - 45, size: 9, font
+  });
+
+  page.drawText(`Ciudad: ${clientCity}`, { x: 300, y: y - 15, size: 9, font });
+  page.drawText(`Dirección: ${clientAddress}`, { x: 300, y: y - 30, size: 9, font });
+
+  page.drawText(`Email: ${clientEmail}`, { x: 55, y: y - 60, size: 9, font });
+  page.drawText(`Vendedor: ${createdBy}`, { x: 300, y: y - 50, size: 9, font });
+
+  y -= 90;
+
+  // ───────── TABLA ─────────
+  const cols = [65, 130, 75, 25, 35, 75, 45, 70];
+
+  const headers = [
+    'COD. BARRAS',
+    'PRODUCTO',
+    'GRS.',
+    'CANT.',
+    'IVA',
+    'VR. UNITARIO',
+    'DTO.',
+    'VLC. TOTAL'
+  ];
+
+  let x = 50;
+
+  headers.forEach((h, i) => {
+    page.drawRectangle({
+      x,
+      y,
+      width: cols[i],
+      height: 20,
+      color: COLORS.primary,
+    });
+
+    page.drawText(h, {
+      x: x + 2,
+      y: y + 5,
+      size: 7,
+      font: bold,
+      color: COLORS.white,
+    });
+
+    x += cols[i];
+  });
+
+  y -= 20;
+
+  // FILAS
+  billItems.forEach((item) => {
+
+    let x = 50;
+
+    const row = [
+      item.code || '-',
+      item.name,
+      item.grammage || '-',
+      item.quantity,
+      `${item.iva}%`,
+      `$ ${Number(item.unitaryPrice).toLocaleString('es-CO')}`,
+      `${Number(item.discountValue).toLocaleString('es-CO')/10} %`,
+      `$ ${Number(item.totalPrice).toLocaleString('es-CO')}`
+    ];
+
+    row.forEach((val, i) => {
+      page.drawText(String(val).slice(0, 25), {
+        x: x + 2,
+        y: y + 5,
+        size: 7,
+        font,
+      });
+      x += cols[i];
+    });
+
+    y -= 18;
+  });
+
+  // TOTALES
+  y -= 20;
+
+  const totals = [
+    ['SUBTOTAL', subtotal],
+    ['DESCUENTO', discount],
+    ['IVA', totalIva],
+    ['TOTAL', totalOperation],
+    ['RETEFUENTE', reteFuente],
+    ['RETEICA', reteica],
+    ['TOTAL NETO', totalLessRetentions],
+  ];
+
+  totals.forEach(([label, value]) => {
+    page.drawText(label, { x: width - 200, y, size: 9, font: bold });
+    page.drawText(`$ ${Number(value).toLocaleString('es-CO')}`, { x: width - 100, y, size: 9, font });
+    y -= 18;
+  });
+
+  page.drawText(`Generado por: ${createdBy}`, {
+    x: 50,
+    y: 40,
+    size: 8,
+    font,
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  return pdfBytes;
+}
+
+module.exports = { generateQuotationPDF, generateBillPDF };
