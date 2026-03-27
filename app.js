@@ -26,6 +26,10 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
+const dns = require('dns');
+
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 // ── MongoDB connection ────────────────────────────────────────────────────────
 mongoose
   .connect(process.env.MONGO_URI)

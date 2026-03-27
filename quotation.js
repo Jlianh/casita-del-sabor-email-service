@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
   if (err) return res.status(400).json({ error: err });
 
   const {
-   clientName, clientEmail, clientAddress, clientCity, clientId,  clientPhone,
+    clientName, clientEmail, clientAddress, clientCity, clientId, clientPhone,
     createdAt = today(),
     quotationItems,
   } = req.body;
@@ -104,7 +104,7 @@ router.post('/preview', async (req, res) => {
 
   const {
     clientName, clientEmail, clientAddress, clientCity, clientId, clientPhone,
-    createdAt = today(), 
+    createdAt = today(),
     quotationItems,
   } = req.body;
 
@@ -130,44 +130,39 @@ function normalizePct(value) {
 function calculateBill(bill) {
 
   const items = bill.billItems || [];
+  const comercialPct = bill.comercialDiscount;
+
+  var subtotal = 0;
 
   const normalizedItems = items.map((item) => {
 
     const quantity = Number(item.quantity) || 0;
     const unitaryPrice = Number(item.unitaryPrice) || 0;
-
-    const ivaPct = normalizePct(item.iva);
-
-    // 🔥 FIX CLAVE
-    const discountPct = item.discount;
+    const discountPct = normalizePct(item.discount);
 
     const base = quantity * unitaryPrice;
 
-    const discountValue = base * discountPct/100;
-    const baseAfterDiscount = base - discountValue;
+    // 🔹 DESCUENTOS ACUMULADOS (CORRECTO)
+    const itemDiscount = base * discountPct / 100
 
-    const ivaValue = baseAfterDiscount * ivaPct;
-
-    const totalPrice = baseAfterDiscount + ivaValue;
+    const subtotal = base - itemDiscount;
 
     return {
       ...item,
-      base,
-      discountValue,
-      ivaValue,
-      totalPrice,
+      subtotal,
+      itemDiscount
     };
   });
 
-  const subtotal = normalizedItems.reduce((sum, i) => sum + i.base, 0);
-  const discount = normalizedItems.reduce((sum, i) => sum + i.discountValue, 0);
-  const totalIva = normalizedItems.reduce((sum, i) => sum + i.ivaValue, 0);
-  const totalOperation = normalizedItems.reduce((sum, i) => sum + i.totalPrice, 0);
+  const subtotalItems = normalizedItems.reduce((sum, i) => sum + i.subtotal, 0);
+  const discount = normalizedItems.reduce((sum, i) => sum + i.itemDiscount, 0);
+  
+  subtotal = subtotalItems - comercialPct;
 
-  const reteFuente = totalOperation * normalizePct(bill.reteFuente/100);
-  const reteica = totalOperation * normalizePct(bill.reteica/1000);
+  const totalIva = subtotal * 0.19;
 
-  const totalLessRetentions = totalOperation - reteFuente - reteica;
+  const totalOperation = subtotal + totalIva;
+
 
   return {
     billItems: normalizedItems,
@@ -175,9 +170,6 @@ function calculateBill(bill) {
     discount,
     totalIva,
     totalOperation,
-    reteFuente,
-    reteica,
-    totalLessRetentions,
   };
 }
 
@@ -186,6 +178,7 @@ function validateBill(body) {
   if (!body.clientEmail) return 'clientEmail is required';
   if (!body.clientId) return 'clientId is required';
   if (!body.createdBy) return 'createdBy is required';
+
 
   if (!Array.isArray(body.billItems) || body.billItems.length === 0) return 'billItems must be a non-empty array';
   for (const [i, item] of body.billItems.entries()) {
@@ -205,7 +198,8 @@ router.post('/bill', async (req, res) => {
     clientName, clientCity, clientEmail,
     clientAddress, clientPhone, clientId,
     createdAt = today(),
-    billItems, createdBy, remisionNumber
+    billItems, createdBy, remisionNumber, cashReceipt,
+    paymentMethod, 
   } = req.body;
 
   const billNumber = `FACT-${Date.now()}`;
@@ -214,16 +208,13 @@ router.post('/bill', async (req, res) => {
   const pdfBuffer = await generateBillPDF({
     clientName, clientCity, clientEmail,
     clientAddress, clientPhone, clientId, createdAt,
-    billNumber, createdBy, remisionNumber,
+    billNumber, createdBy, remisionNumber, cashReceipt,
+    paymentMethod, 
     billItems: computed.billItems,
     subtotal: computed.subtotal,
     discount: computed.discount,
     totalIva: computed.totalIva,
     totalOperation: computed.totalOperation,
-    reteFuente: computed.reteFuente,
-    reteIva: computed.reteIva,
-    reteica: computed.reteica,
-    totalLessRetentions: computed.totalLessRetentions,
   });
 
   await sendEmailWithAttachment({
@@ -252,28 +243,26 @@ router.post('/bill/preview', async (req, res) => {
   if (err) return res.status(400).json({ error: err });
 
   const {
-    clientName, clientCompany, clientEmail,
+    clientName, clientCity, clientEmail,
     clientAddress, clientPhone, clientId,
-    createdAt = today(), createdBy,
-    billItems,
+    createdAt = today(),
+    billItems, createdBy, remisionNumber, cashReceipt,
+    paymentMethod, 
   } = req.body;
 
   const billNumber = `PREVIEW-${Date.now()}`;
   const computed = calculateBill({ ...req.body, billItems });
 
   const pdfBuffer = await generateBillPDF({
-    clientName, clientCompany, clientEmail,
-    clientAddress, clientPhone, clientId, createdAt, createdBy, 
-    billNumber,
+    clientName, clientCompany, clientEmail,clientCity,
+    clientAddress, clientPhone, clientId, createdAt, 
+    billNumber, createdBy, remisionNumber, cashReceipt,
+    paymentMethod, comercialDiscount,
     billItems: computed.billItems,
     subtotal: computed.subtotal,
     discount: computed.discount,
     totalIva: computed.totalIva,
     totalOperation: computed.totalOperation,
-    reteFuente: computed.reteFuente,
-    reteIva: computed.reteIva,
-    reteica: computed.reteica,
-    totalLessRetentions: computed.totalLessRetentions,
   });
 
   res.setHeader('Content-Type', 'application/pdf');

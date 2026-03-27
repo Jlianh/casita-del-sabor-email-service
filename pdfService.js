@@ -282,11 +282,11 @@ async function generateQuotationPDF({
 async function generateBillPDF(data) {
 
   const {
-    clientName, clientEmail,
-    clientAddress, clientPhone, clientId, clientCity,
-    createdAt, createdBy, remisionNumber, billItems,
-    subtotal, discount, totalIva,
-    totalOperation, reteFuente, reteica, totalLessRetentions,
+    clientName, clientCity, clientEmail,
+    clientAddress, clientPhone, clientId, createdAt,
+    createdBy, remisionNumber, cashReceipt,
+    paymentMethod,
+    billItems, subtotal, discount, totalIva,totalOperation
   } = data;
 
   const pdfDoc = await PDFDocument.create();
@@ -324,6 +324,10 @@ async function generateBillPDF(data) {
     x: width - 200, y: height - 40, size: 10, font: bold,
   });
 
+  page.drawText(`Recibo de caja: ${cashReceipt}`, {
+    x: width - 200, y: height - 25, size: 10, font: bold,
+  });
+
   page.drawText(`Fecha: ${createdAt}`, {
     x: width - 200, y: height - 55, size: 9, font,
   });
@@ -340,7 +344,7 @@ async function generateBillPDF(data) {
   });
 
   page.drawText(`Cliente: ${clientName}`, { x: 55, y: y - 15, size: 9, font });
-  page.drawText(`NIT: ${clientId}`, { x: 55, y: y - 30, size: 9, font });
+  page.drawText(`NIT | CC: ${clientId}`, { x: 55, y: y - 30, size: 9, font });
   page.drawText(`Teléfono: ${clientPhone}`, {
     x: 55, y: y - 45, size: 9, font
   });
@@ -349,12 +353,13 @@ async function generateBillPDF(data) {
   page.drawText(`Dirección: ${clientAddress}`, { x: 300, y: y - 30, size: 9, font });
 
   page.drawText(`Email: ${clientEmail}`, { x: 55, y: y - 60, size: 9, font });
-  page.drawText(`Vendedor: ${createdBy}`, { x: 300, y: y - 50, size: 9, font });
+  page.drawText(`Vendedor: ${createdBy}`, { x: 300, y: y - 45, size: 9, font });
+  page.drawText(`Forma de pago: ${paymentMethod}`, { x: 300, y: y - 60, size: 9, font });
 
   y -= 90;
 
   // ───────── TABLA ─────────
-  const cols = [65, 130, 75, 25, 35, 75, 45, 70];
+  const cols = [65, 110, 95, 25, 35, 75, 45, 70];
 
   const headers = [
     'COD. BARRAS',
@@ -364,7 +369,7 @@ async function generateBillPDF(data) {
     'IVA',
     'VR. UNITARIO',
     'DTO.',
-    'VLC. TOTAL'
+    'TOTAL'
   ];
 
   let x = 50;
@@ -403,8 +408,8 @@ async function generateBillPDF(data) {
       item.quantity,
       `${item.iva}%`,
       `$ ${Number(item.unitaryPrice).toLocaleString('es-CO')}`,
-      `${Number(item.discountValue).toLocaleString('es-CO')/10} %`,
-      `$ ${Number(item.totalPrice).toLocaleString('es-CO')}`
+      `${Number(item.discount).toLocaleString('es-CO')} %`,
+      `$ ${Number(item.subtotal).toLocaleString('es-CO')}`
     ];
 
     row.forEach((val, i) => {
@@ -428,9 +433,6 @@ async function generateBillPDF(data) {
     ['DESCUENTO', discount],
     ['IVA', totalIva],
     ['TOTAL', totalOperation],
-    ['RETEFUENTE', reteFuente],
-    ['RETEICA', reteica],
-    ['TOTAL NETO', totalLessRetentions],
   ];
 
   totals.forEach(([label, value]) => {
