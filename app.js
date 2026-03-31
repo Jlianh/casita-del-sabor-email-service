@@ -10,7 +10,8 @@ const authRoutes      = require('./auth');
 const app = express();
 const allowedOrigins = [
   'http://localhost:4200',
-  'https://www.lacasitadelsabor.com'
+  'https://www.lacasitadelsabor.com',
+  'lacasitadelsabor.com'
 ];
 
 app.use(cors({
