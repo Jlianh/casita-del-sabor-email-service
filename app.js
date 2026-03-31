@@ -11,7 +11,7 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:4200',
   'https://www.lacasitadelsabor.com',
-  'lacasitadelsabor.com'
+  'https://lacasitadelsabor.com'
 ];
 
 app.use(cors({
