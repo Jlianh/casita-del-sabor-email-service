@@ -104,11 +104,11 @@ router.post('/logout', (req, res) => {
 router.post('/users', requireAuth, requireRole('administrador'), async (req, res) => {
   try {
     console.log('[auth] Create user request body:', req.body);
-    const { id, name, user, password } = req.body;
+    const { id, name, email, user, password } = req.body;
     const roleInput = req.body.roles || req.body.role;
 
-    if (!id || !name || !user || !password || !roleInput) {
-      return res.status(400).json({ error: 'id, name, user, password, and role(s) are required' });
+    if (!id || !name || !email || !user || !password || !roleInput) {
+      return res.status(400).json({ error: 'id, name, email, user, password, and role(s) are required' });
     }
 
     const roleValues = Array.isArray(roleInput) ? roleInput : [roleInput];
@@ -132,6 +132,7 @@ router.post('/users', requireAuth, requireRole('administrador'), async (req, res
     const newUser = new User({
       id,
       name,
+      email,
       user,
       password: encryptedPassword,
       roles: finalRoles,
@@ -207,7 +208,7 @@ router.get('/users/:id', async (req, res) => {
     }
 
     res.json({
-      user: user.user
+      email: user.email
     });
   } catch (err) {
     console.error('[auth] Get user by ID error:', err.message);
@@ -218,14 +219,14 @@ router.get('/users/:id', async (req, res) => {
 router.post('/sendRestoreEmail', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ user: email });
+    const user = await User.findOne({ email: email });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
   
   await sendEmailWithAttachment({
-    to: [user.user], 
+    to: [email], 
     subject: `Recuperar Contraseña`,
     html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="http://localhost:4200/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
   }, 'security');
@@ -246,16 +247,16 @@ router.post('/sendRestoreEmail', async (req, res) => {
 
 router.post('/restore', async (req, res) => {
   try {
-    const { user, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!user || !password) {
-      return res.status(400).json({ error: '"user" and "password" are required' });
+    if (!email || !password) {
+      return res.status(400).json({ error: '"email" and "password" are required' });
     }
 
     const encryptedPassword = encryptPassword(password);
 
     const updated = await User.findOneAndUpdate(
-      { user: user },
+      { email: email },
       { password: encryptedPassword },
       { new: true }
     );

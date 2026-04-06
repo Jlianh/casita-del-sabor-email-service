@@ -43,7 +43,7 @@ async function sendEmailWithAttachment({ to, subject, html, attachments = [] }, 
 
 
   const info = await transporter.sendMail({
-    from: `"Casita del Sabor" <${transporter.options.auth.user}>`,
+    from: `"Casita del Sabor" <${user}>`,
     to,
     subject,
     html,
