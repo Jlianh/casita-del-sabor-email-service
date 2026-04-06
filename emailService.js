@@ -2,13 +2,26 @@ const nodemailer = require('nodemailer');
 
 function createTransporter(user, pass) {
   
+  // const transporter = nodemailer.createTransport({
+  //   host: process.env.SMTP_HOST || 'mail.lacasitadelsabor.com',
+  //   port: parseInt(process.env.SMTP_PORT || '465'),
+  //   secure: true,
+  //   auth: {
+  //     user,
+  //     pass,
+  //   },
+  // });
+
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'mail.lacasitadelsabor.com',
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: true,
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
     auth: {
       user,
       pass,
+    },
+    tls: {
+      rejectUnauthorized: false,
     },
   });
 
