@@ -225,17 +225,17 @@ router.post('/sendRestoreEmail', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
   
-  await sendEmailWithAttachment({
-    to: [email], 
-    subject: `Recuperar Contraseña`,
-    html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="http://localhost:4200/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
-  }, 'security');
-
   // await sendEmailWithAttachment({
-  //   to: [user.user], 
+  //   to: [email], 
   //   subject: `Recuperar Contraseña`,
-  //   html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="https://lacasitadelsabor.com/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
+  //   html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="http://localhost:4200/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
   // }, 'security');
+
+  await sendEmailWithAttachment({
+    to: [user.email], 
+    subject: `Recuperar Contraseña`,
+    html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="https://lacasitadelsabor.com/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
+  }, 'security');
 
     res.json({ message: 'Recovery email sent' });
 
