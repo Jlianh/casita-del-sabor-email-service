@@ -232,12 +232,12 @@ router.post('/sendRestoreEmail', async (req, res) => {
   // }, 'security');
 
   await sendEmailWithAttachment({
-    to: [user.email], 
+    to: [email], 
     subject: `Recuperar Contraseña`,
     html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="https://lacasitadelsabor.com/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
   }, 'security');
 
-    res.json({ message: 'Recovery email sent' });
+    return res.status(200).json({ message: 'Recovery email sent' });
 
   } catch (err) {
     console.error('[auth] Get user by username error:', err.message);
