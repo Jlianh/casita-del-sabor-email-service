@@ -5,7 +5,7 @@ function createTransporter(user, pass) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'mail.lacasitadelsabor.com',
     port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: false,
+    secure: true,
     auth: {
       user,
       pass,
