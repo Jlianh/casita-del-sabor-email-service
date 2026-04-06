@@ -4,6 +4,7 @@ const router   = express.Router();
 const User     = require('./User.js');
 const { encryptPassword, verifyPassword } = require('./authService.js');
 const { requireAuth, requireRole } = require('./mnt/user-data/outputs/spice-api-final/src/middleware/auth.js');
+const { sendEmailWithAttachment } = require('./emailService.js');
 
 /**
  * POST /api/auth/login
@@ -186,12 +187,89 @@ router.delete('/users/:id', requireAuth, requireRole('administrador'), async (re
  */
 router.get('/users', requireAuth, requireRole('administrador'), async (req, res) => {
   try {
-    const users = await User.find(); // excluye password
+    const users = await User.find({}, { password: 0 }); // excluye password
 
     res.json(users);
 
   } catch (err) {
     console.error('[auth] Get users error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findOne({ id: userId });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      user: user.user
+    });
+  } catch (err) {
+    console.error('[auth] Get user by ID error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/sendRestoreEmail', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ user: email });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+  
+  await sendEmailWithAttachment({
+    to: [user.user], 
+    subject: `Recuperar Contraseña`,
+    html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="http://localhost:4200/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
+  }, 'security');
+
+  // await sendEmailWithAttachment({
+  //   to: [user.user], 
+  //   subject: `Recuperar Contraseña`,
+  //   html: `<p>Hola ${user.name},</p><p>Este es el link para recuperar tu contraseña:</p><p><a href="https://lacasitadelsabor.com/auth/restore/${user.id}">Recuperar Contraseña</a></p><p>Saludos,<br>El equipo de Casita del Sabor</p>`,
+  // }, 'security');
+
+    res.json({ message: 'Recovery email sent' });
+
+  } catch (err) {
+    console.error('[auth] Get user by username error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/restore', async (req, res) => {
+  try {
+    const { user, password } = req.body;
+
+    if (!user || !password) {
+      return res.status(400).json({ error: '"user" and "password" are required' });
+    }
+
+    const encryptedPassword = encryptPassword(password);
+
+    const updated = await User.findOneAndUpdate(
+      { user: user },
+      { password: encryptedPassword },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'Password restored successfully',
+      user: { id: updated.id, name: updated.name, user: updated.user, roles: updated.roles },
+    });
+  } catch (err) {
+    console.error('[auth] Restore password error:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

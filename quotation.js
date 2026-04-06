@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
   });
 
   await sendEmailWithAttachment({
-    to: [clientEmail, "lacasitadelsabor@yahoo.com"],
+    to: ["vendedor@lacasitadelsabor.com"],
     subject: `Tu cotizacion ${quotationNumber}`,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:auto;color:#222;">
@@ -82,7 +82,7 @@ router.post('/', async (req, res) => {
       content: pdfBuffer,
       contentType: 'application/pdf',
     }],
-  });
+  }, 'seller');
 
   if (req.query.download === 'true') {
     res.setHeader('Content-Type', 'application/pdf');
@@ -218,11 +218,11 @@ router.post('/bill', async (req, res) => {
   });
 
   await sendEmailWithAttachment({
-    to: [clientEmail, 'lacasitadelsabor@yahoo.com'],
+    to: ["remisiones@lacasitadelsabor.com"],
     subject: `Remision ${remisionNumber}`,
     html: `<p>Adjunto encontrará la remision ${remisionNumber}.</p>`,
     attachments: [{ filename: `${remisionNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
-  });
+  }, 'remission');
 
   if (req.query.download === 'true') {
     res.setHeader('Content-Type', 'application/pdf');
