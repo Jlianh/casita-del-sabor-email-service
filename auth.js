@@ -243,7 +243,7 @@ router.post('/sendRestoreEmail', async (req, res) => {
 
   } catch (err) {
     console.error('[auth] Get user by username error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message });
   }
 });
 
