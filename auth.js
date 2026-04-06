@@ -5,6 +5,7 @@ const User     = require('./User.js');
 const { encryptPassword, verifyPassword } = require('./authService.js');
 const { requireAuth, requireRole } = require('./mnt/user-data/outputs/spice-api-final/src/middleware/auth.js');
 const { sendEmailWithAttachment } = require('./emailService.js');
+const { connectDB } = require('./db.js');
 
 /**
  * POST /api/auth/login
@@ -15,6 +16,9 @@ const { sendEmailWithAttachment } = require('./emailService.js');
  */
 router.post('/login', async (req, res) => {
   try {
+
+    await connectDB();
+
     const { user: username, password } = req.body;
 
     if (!username || !password) {
@@ -82,7 +86,7 @@ router.post('/login', async (req, res) => {
  * Returns the currently logged-in user's info from the token.
  * Requires: Authorization: Bearer <token>
  */
-router.get('/me', requireAuth, (req, res) => {
+router.get('/me', requireAuth, async (req, res) => {
   res.json({ user: req.user });
 });
 
@@ -91,7 +95,12 @@ router.get('/me', requireAuth, (req, res) => {
  * Clears the JWT cookie.
  */
 router.post('/logout', (req, res) => {
-  res.clearCookie('token');
+   res.clearCookie('token', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/'
+  });
   res.json({ message: 'Logged out successfully' });
 });
 
@@ -103,6 +112,7 @@ router.post('/logout', (req, res) => {
  */
 router.post('/users', requireAuth, requireRole('administrador'), async (req, res) => {
   try {
+    await connectDB();
     console.log('[auth] Create user request body:', req.body);
     const { id, name, email, user, password } = req.body;
     const roleInput = req.body.roles || req.body.role;
@@ -157,6 +167,9 @@ router.post('/users', requireAuth, requireRole('administrador'), async (req, res
  */
 router.delete('/users/:id', requireAuth, requireRole('administrador'), async (req, res) => {
   try {
+
+    await connectDB();
+
     const userId = req.params.id;
     const currentUserId = req.user.id;
 
@@ -188,6 +201,8 @@ router.delete('/users/:id', requireAuth, requireRole('administrador'), async (re
  */
 router.get('/users', requireAuth, requireRole('administrador'), async (req, res) => {
   try {
+    await connectDB();
+
     const users = await User.find({}, { password: 0 }); // excluye password
 
     res.json(users);
@@ -200,6 +215,8 @@ router.get('/users', requireAuth, requireRole('administrador'), async (req, res)
 
 router.get('/users/:id', async (req, res) => {
   try {
+
+    await connectDB();
     const userId = req.params.id;
     const user = await User.findOne({ id: userId });
 
@@ -218,8 +235,11 @@ router.get('/users/:id', async (req, res) => {
 
 router.post('/sendRestoreEmail', async (req, res) => {
   try {
+    await connectDB();
     const { email } = req.body;
     const user = await User.findOne({ email: email });
+
+    console.log('[auth] User found:', user);
 
     console.log('[auth] Send restore email request body:', req.body);
 
@@ -249,6 +269,7 @@ router.post('/sendRestoreEmail', async (req, res) => {
 
 router.post('/restore', async (req, res) => {
   try {
+    await connectDB();
     const { email, password } = req.body;
 
     if (!email || !password) {
