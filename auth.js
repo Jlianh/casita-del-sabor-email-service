@@ -221,6 +221,8 @@ router.post('/sendRestoreEmail', async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email: email });
 
+    console.log('[auth] Send restore email request body:', req.body);
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

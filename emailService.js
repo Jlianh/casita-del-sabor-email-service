@@ -34,13 +34,21 @@ function setSMTPConfig(role) {
 async function sendEmailWithAttachment({ to, subject, html, attachments = [] }, role) {
   const transporter = setSMTPConfig(role);
 
-  const user =
-    role === 'seller'
-      ? process.env.SMTP_SELLER_USER
-      : role === 'remission'
-        ? process.env.SMTP_REMISSION_USER
-        : process.env.SMTP_SECURITY_USER;
+  var user = '';
 
+  switch (role) {
+    case 'seller':
+      user = process.env.SMTP_SELLER_USER;
+      break;
+    case 'remission':
+      user = process.env.SMTP_REMISSION_USER;
+      break;
+    case 'security':
+      user = process.env.SMTP_SECURITY_USER;
+      break;
+    default:
+      throw new Error('Invalid role');
+  }
 
   const info = await transporter.sendMail({
     from: `"Casita del Sabor" <${user}>`,
