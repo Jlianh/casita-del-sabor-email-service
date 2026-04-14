@@ -202,7 +202,7 @@ router.post('/bill', async (req, res) => {
     paymentMethod, 
   } = req.body;
 
-  const billNumber = `FACT-${Date.now()}`;
+  const billNumber = `REMISION-${Date.now()}`;
   const computed = calculateBill({ ...req.body, billItems });
 
   const pdfBuffer = await generateBillPDF({
