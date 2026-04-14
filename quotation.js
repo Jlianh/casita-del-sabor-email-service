@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
   });
 
   await sendEmailWithAttachment({
-    to: ["vendedor@lacasitadelsabor.com"],
+    to: ["vendedor@lacasitadelsabor.com", "lacasitadelsabor@yahoo.com"],
     subject: `Tu cotizacion ${quotationNumber}`,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:auto;color:#222;">
@@ -218,7 +218,7 @@ router.post('/bill', async (req, res) => {
   });
 
   await sendEmailWithAttachment({
-    to: ["remisiones@lacasitadelsabor.com"],
+    to: ["remisiones@lacasitadelsabor.com", "lacasitadelsabor@yahoo.com"],
     subject: `Remision ${remisionNumber}`,
     html: `<p>Adjunto encontrará la remision ${remisionNumber}.</p>`,
     attachments: [{ filename: `${remisionNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
