@@ -149,13 +149,13 @@ async function generateQuotationPDF({
   const pdfDoc  = await PDFDocument.create();
   const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold= await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
+ 
   const newPage = makePageFactory(pdfDoc, fontReg, 'Cotizacion ' + quotationNumber);
-
+ 
   // ── Embed logo ──────────────────────────────────────────────────────────────
   const logoBuf  = Buffer.from(LOGO_BASE64, 'base64');
   const logoImg  = await pdfDoc.embedPng(logoBuf);
-
+ 
   // ── Pre-fetch product images in parallel ────────────────────────────────────
   const resolvedUrls = quotationItems.map(item => resolveImageUrl(item));
   const uniqueUrls   = [...new Set(resolvedUrls.filter(Boolean))];
@@ -163,16 +163,16 @@ async function generateQuotationPDF({
   await Promise.all(uniqueUrls.map(async url => {
     urlCache[url] = await embedProductImage(pdfDoc, url);
   }));
-
+ 
   // ── Page 1 ──────────────────────────────────────────────────────────────────
   let page = newPage();
   let y    = PH - MT;
-
+ 
   // ── HEADER (matches drawQuotationHeader) ─────────────────────────────────
   const HDR_H = 26 * MM;
   page.drawRectangle({ x: 0, y: PH - HDR_H, width: PW, height: HDR_H, color: C.red });
   page.drawRectangle({ x: 0, y: PH - HDR_H, width: PW, height: 2 * MM, color: C.yellow });
-
+ 
   // Logo — right side (160mm from left, 4mm from top → in pt, from bottom)
   const logoDims = logoImg.scaleToFit(35 * MM, 22 * MM);
   page.drawImage(logoImg, {
@@ -180,7 +180,7 @@ async function generateQuotationPDF({
     y: PH - (4 * MM) - logoDims.height,
     width: logoDims.width, height: logoDims.height,
   });
-
+ 
   // Title
   page.drawText('COTIZACION', {
     x: ML, y: PH - 6 * MM - 10, size: 18, font: fontBold, color: C.white,
@@ -192,47 +192,43 @@ async function generateQuotationPDF({
   page.drawText(formatDate(createdAt), {
     x: 100 * MM, y: PH - 15 * MM - 5, size: 8, font: fontReg, color: C.white,
   });
-
+ 
   y = PH - HDR_H - 4 * MM;
-
+ 
   // ── CLIENT BLOCK (matches drawClientBlock) ────────────────────────────────
   page.drawText(clientName, {
     x: ML, y, size: 13, font: fontBold, color: C.dark,
   });
   y -= 8 * MM;
-  const clientLines = [
-    [`Ciudad: ${clientCity || '-'}`],
-    [`C.C | NIT: ${clientId || '-'}`],
-    [null, clientEmail, clientPhone],   // email + phone row
-    [null, clientAddress],              // address row
-  ];
-  for (const row of clientLines) {
-    if (row[0]) {
-      page.drawText(row[0], { x: ML, y, size: 9, font: fontReg, color: C.mid });
-    } else {
-      // Email row
-      page.drawText('Email:',     { x: ML,          y, size: 8, font: fontBold, color: C.mid });
-      page.drawText(row[1] || '-',{ x: ML + 13*MM,  y, size: 9, font: fontReg,  color: C.dark });
-      if (row[2]) {
-        page.drawText('Telefono:',    { x: 110*MM,       y, size: 8, font: fontBold, color: C.mid });
-        page.drawText(row[2],          { x: 110*MM+18*MM, y, size: 9, font: fontReg,  color: C.dark });
-      }
-      if (!row[2] && row[1] === clientAddress) {
-        page.drawText('Direccion:',  { x: ML,          y, size: 8, font: fontBold, color: C.mid });
-        page.drawText(row[1] || '-',{ x: ML + 20*MM,  y, size: 9, font: fontReg,  color: C.dark });
-      }
-    }
-    y -= 5 * MM;
-  }
-
+ 
+  // Row 1: Ciudad
+  page.drawText(`Ciudad: ${clientCity || '-'}`, { x: ML, y, size: 9, font: fontReg, color: C.mid });
+  y -= 5 * MM;
+ 
+  // Row 2: C.C | NIT
+  page.drawText(`C.C | NIT: ${clientId || '-'}`, { x: ML, y, size: 9, font: fontReg, color: C.mid });
+  y -= 5 * MM;
+ 
+  // Row 3: Email (left) | Telefono (right)
+  page.drawText('Email:',              { x: ML,            y, size: 8, font: fontBold, color: C.mid });
+  page.drawText(clientEmail || '-',    { x: ML + 13*MM,    y, size: 9, font: fontReg,  color: C.dark });
+  page.drawText('Telefono:',           { x: 110*MM,        y, size: 8, font: fontBold, color: C.mid });
+  page.drawText(clientPhone || '-',    { x: 110*MM+18*MM,  y, size: 9, font: fontReg,  color: C.dark });
+  y -= 5 * MM;
+ 
+  // Row 4: Direccion
+  page.drawText('Direccion:',          { x: ML,            y, size: 8, font: fontBold, color: C.mid });
+  page.drawText(clientAddress || '-',  { x: ML + 20*MM,    y, size: 9, font: fontReg,  color: C.dark });
+  y -= 5 * MM;
+ 
   // Divider
   hLine(page, ML, y + 2 * MM, PW - MR);
   y -= 6 * MM;
-
+ 
   // ── TABLE HEADER (matches drawQuotationTableHeader) ───────────────────────
   const TBL_HDR_H = 8 * MM;
   page.drawRectangle({ x: ML, y: y - TBL_HDR_H, width: INNER, height: TBL_HDR_H, color: C.yellow });
-
+ 
   const Q_COLS = { img: 22*MM, prod: 57*MM, gram: 22*MM, qty: 22*MM };
   const QX = {
     img:  ML + 2*MM,
@@ -240,24 +236,24 @@ async function generateQuotationPDF({
     gram: ML + 87*MM,
     qty:  ML + 159*MM,
   };
-
+ 
   const thY = y - TBL_HDR_H + 1.5*MM;
   page.drawText('Imagen',   { x: QX.img,  y: thY, size: 8, font: fontBold, color: C.dark });
   page.drawText('Producto', { x: QX.prod, y: thY, size: 8, font: fontBold, color: C.dark });
   page.drawText('Gramaje',  { x: QX.gram, y: thY, size: 8, font: fontBold, color: C.dark });
   page.drawText('Cantidad', { x: QX.qty,  y: thY, size: 8, font: fontBold, color: C.dark });
-
+ 
   // Red rule below header
   hLine(page, ML, y - TBL_HDR_H, PW - MR, C.red, 1.5);
   y = y - TBL_HDR_H;
-
+ 
   // ── PRODUCT ROWS (matches drawQuotationRow) ───────────────────────────────
   const ROW_H = 22 * MM;
   const IMG_SLOT = 18 * MM;
-
+ 
   for (let i = 0; i < quotationItems.length; i++) {
     const item = quotationItems[i];
-
+ 
     if (y - ROW_H < 60) {
       page = newPage();
       y    = PH - MT;
@@ -270,12 +266,12 @@ async function generateQuotationPDF({
       hLine(page, ML, y - TBL_HDR_H, PW - MR, C.red, 1.5);
       y = y - TBL_HDR_H;
     }
-
+ 
     const rowBot = y - ROW_H;
     if (i % 2 === 0) {
       page.drawRectangle({ x: ML, y: rowBot, width: INNER, height: ROW_H, color: rgb(0.997,0.997,0.997) });
     }
-
+ 
     // Image
     const imgUrl = resolvedUrls[i];
     const img    = imgUrl ? urlCache[imgUrl] : null;
@@ -295,41 +291,41 @@ async function generateQuotationPDF({
         size: 5.5, font: fontReg, color: C.white,
       });
     }
-
+ 
     // Product name
     const midY = rowBot + ROW_H / 2;
     const nameText = item.name.length > 36 ? item.name.slice(0, 34) + '…' : item.name;
     page.drawText(nameText, { x: QX.prod, y: midY + 3*MM, size: 9, font: fontBold, color: C.dark });
     page.drawText('Ref. #' + (item.productId || ''), { x: QX.prod, y: midY - 1*MM, size: 7, font: fontReg, color: C.mid });
-
+ 
     // Grammage
     page.drawText(item.grammage || '', { x: QX.gram, y: midY, size: 9, font: fontReg, color: C.dark });
-
+ 
     // Quantity
     page.drawText(`${item.quantity} uds.`, { x: QX.qty, y: midY, size: 9, font: fontBold, color: C.red });
-
+ 
     hLine(page, ML, rowBot, PW - MR);
     y = rowBot;
   }
-
+ 
   // ── TOTALS (matches drawQuotationTotals) ──────────────────────────────────
   y -= 6 * MM;
   if (y < 60) { page = newPage(); y = PH - MT; }
-
+ 
   const totalUnits = quotationItems.reduce((s, i) => s + Number(i.quantity), 0);
   const TOT_H = 16 * MM;
   page.drawRectangle({ x: ML, y: y - TOT_H, width: INNER, height: TOT_H, color: C.light });
   page.drawRectangle({ x: ML, y: y - TOT_H, width: 1.5, height: TOT_H, color: C.yellow });
-
+ 
   page.drawText('Total de referencias:', { x: ML + 4, y: y - 4*MM, size: 9, font: fontReg, color: C.dark });
   page.drawText(String(quotationItems.length), { x: QX.qty, y: y - 4*MM, size: 9, font: fontBold, color: C.red });
   page.drawText('Total de unidades:',    { x: ML + 4, y: y - 9*MM, size: 9, font: fontReg, color: C.dark });
   page.drawText(String(totalUnits),        { x: QX.qty, y: y - 9*MM, size: 9, font: fontBold, color: C.red });
-
+ 
   // ── NOTES (matches drawQuotationNotes) ───────────────────────────────────
   y -= TOT_H + 8 * MM;
   if (y < 60) { page = newPage(); y = PH - MT; }
-
+ 
   page.drawText('Notas:', { x: ML, y, size: 8, font: fontBold, color: C.dark });
   const notes = [
     'Los precios no estan incluidos en este documento. Un asesor se comunicara con usted.',
@@ -340,7 +336,7 @@ async function generateQuotationPDF({
     y -= 5 * MM;
     page.drawText('- ' + note, { x: ML, y, size: 7.5, font: fontReg, color: C.mid });
   }
-
+ 
   return Buffer.from(await pdfDoc.save());
 }
 
