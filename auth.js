@@ -52,6 +52,7 @@ router.post('/login', async (req, res) => {
       id:  found.id,
       name: found.name,
       user: found.user,
+      email: found.email,
       role: userRoles,   // backward compatibility
       roles: userRoles,  // primary key for multiple roles
     };
