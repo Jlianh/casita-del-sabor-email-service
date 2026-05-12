@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema(
     user:     { type: String, required: true },
     password: { type: String, required: true }, // AES-256 encrypted
     // support multiple roles per user (presented as roles array)
-    roles:    { type: [String], enum: ['vendedor', 'administrador'], required: true },
+    roles:    { type: [String], enum: ['vendedor', 'administrador', 'cliente'], required: true },
   },
   { timestamps: true }
 );
