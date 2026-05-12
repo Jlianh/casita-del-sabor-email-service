@@ -296,7 +296,6 @@ async function generateQuotationPDF({
     const midY = rowBot + ROW_H / 2;
     const nameText = item.name.length > 36 ? item.name.slice(0, 34) + '…' : item.name;
     page.drawText(nameText, { x: QX.prod, y: midY + 3*MM, size: 9, font: fontBold, color: C.dark });
-    page.drawText('Ref. #' + (item.productId || ''), { x: QX.prod, y: midY - 1*MM, size: 7, font: fontReg, color: C.mid });
  
     // Grammage
     page.drawText(item.grammage || '', { x: QX.gram, y: midY, size: 9, font: fontReg, color: C.dark });
@@ -313,7 +312,7 @@ async function generateQuotationPDF({
   if (y < 60) { page = newPage(); y = PH - MT; }
  
   const totalUnits = quotationItems.reduce((s, i) => s + Number(i.quantity), 0);
-  const TOT_H = 16 * MM;
+  const TOT_H = 16 * MM;j
   page.drawRectangle({ x: ML, y: y - TOT_H, width: INNER, height: TOT_H, color: C.light });
   page.drawRectangle({ x: ML, y: y - TOT_H, width: 1.5, height: TOT_H, color: C.yellow });
  

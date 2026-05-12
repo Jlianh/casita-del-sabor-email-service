@@ -160,6 +160,56 @@ router.post('/users', requireAuth, requireRole('administrador'), async (req, res
   }
 });
 
+router.post('/register', async (req, res) => {
+  try {
+    await connectDB();
+    console.log('[auth] Create user request body:', req.body);
+    const { id, name, email, user, password } = req.body;
+    const roleInput = req.body.roles || req.body.role;
+
+    if (!id || !name || !email || !user || !password || !roleInput) {
+      return res.status(400).json({ error: 'id, name, email, user, password, and role(s) are required' });
+    }
+
+    const roleValues = Array.isArray(roleInput) ? roleInput : [roleInput];
+    const allowedRoles = ['vendedor', 'administrador', 'cliente'];
+    const invalidRoles = roleValues.filter(r => !allowedRoles.includes(r));
+
+    if (invalidRoles.length > 0) {
+      return res.status(400).json({ error: `Invalid role(s): ${invalidRoles.join(', ')}` });
+    }
+
+    // Check if user already exists
+    const existing = await User.findOne({ $or: [{ user }, { id }] });
+    if (existing) {
+      return res.status(409).json({ error: 'User with this username or id already exists' });
+    }
+
+    const encryptedPassword = encryptPassword(password);
+
+    const finalRoles = Array.from(new Set(roleValues));
+
+    const newUser = new User({
+      id,
+      name,
+      email,
+      user,
+      password: encryptedPassword,
+      roles: finalRoles,
+    });
+
+    await newUser.save();
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: { id: newUser.id, name: newUser.name, user: newUser.user, roles: newUser.roles },
+    });
+  } catch (err) {
+    console.error('[auth] Create user error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 /**
  * DELETE /api/auth/users/:id
  * Deletes a user by ID. Requires admin role.
