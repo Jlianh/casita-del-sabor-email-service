@@ -48,7 +48,7 @@ function formatDate(dateStr) {
 function resolveImageUrl(item) {
   if (item.imageUrl) return item.imageUrl;
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const folder    = process.env.CLOUDINARY_FOLDER || 'casita-del-sabor';
+  const folder    = process.env.CLOUDINARY_FOLDER || '';
   if (cloudName && item.imageName) {
     const publicId = item.imageName.replace(/\.[^/.]+$/, '');
     const fullId   = folder ? `${folder}/${publicId}` : publicId;
@@ -312,7 +312,7 @@ async function generateQuotationPDF({
   if (y < 60) { page = newPage(); y = PH - MT; }
  
   const totalUnits = quotationItems.reduce((s, i) => s + Number(i.quantity), 0);
-  const TOT_H = 16 * MM;j
+  const TOT_H = 16 * MM;
   page.drawRectangle({ x: ML, y: y - TOT_H, width: INNER, height: TOT_H, color: C.light });
   page.drawRectangle({ x: ML, y: y - TOT_H, width: 1.5, height: TOT_H, color: C.yellow });
  
