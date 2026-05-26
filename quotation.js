@@ -3,6 +3,8 @@ const router = express.Router();
 const { generateQuotationPDF, generateBillPDF } = require('./pdfService');
 const { sendEmailWithAttachment } = require('./emailService');
 const billModel = require('./Bill');
+const CounterModel = require('./Counter');
+const dayjs = require('dayjs');
 
 /**
  * Validates the incoming body.
@@ -157,7 +159,7 @@ function calculateBill(bill) {
 
   const subtotalItems = normalizedItems.reduce((sum, i) => sum + i.subtotal, 0);
   const discount = normalizedItems.reduce((sum, i) => sum + i.itemDiscount, 0);
-  
+
   subtotal = subtotalItems - comercialPct;
 
   const totalIva = subtotal * 0.19;
@@ -199,21 +201,37 @@ router.post('/bill', async (req, res) => {
     clientName, clientCity, clientEmail,
     clientAddress, clientPhone, clientId,
     createdAt = today(),
-    billItems, createdBy, remisionNumber, cashReceipt,
-    paymentMethod, 
+    billItems, createdBy, cashReceipt,
+    paymentMethod,
   } = req.body;
 
-  const billCounter = await billModel.countDocuments();
 
-  const billSerial = `REMISION-${String(billCounter.count).padStart(3, '0')}`;
+  const period = dayjs().format('YYYYMM');
+
+  const counterId = `REM-${period}`;
+
+  const counter = await CounterModel.findByIdAndUpdate(
+    counterId,
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const serial = `${counterId}-${String(counter.seq).padStart(6, '0')}`;
+
+  // SAVE the bill record to MongoDB
+  await billModel.create({
+    _id: serial,  // Use the serial as the unique ID
+    serial: serial,
+    date: new Date(createdAt),
+  });
 
   const computed = calculateBill({ ...req.body, billItems });
 
   const pdfBuffer = await generateBillPDF({
     clientName, clientCity, clientEmail,
     clientAddress, clientPhone, clientId, createdAt,
-    billSerial, createdBy, remisionNumber, cashReceipt,
-    paymentMethod, 
+    serial, createdBy, cashReceipt,
+    paymentMethod,
     billItems: computed.billItems,
     subtotal: computed.subtotal,
     discount: computed.discount,
@@ -223,20 +241,20 @@ router.post('/bill', async (req, res) => {
 
   await sendEmailWithAttachment({
     to: ["remisiones@lacasitadelsabor.com", "lacasitadelsabor@yahoo.com"],
-    subject: `Remision ${remisionNumber}`,
-    html: `<p>Adjunto encontrará la remision ${remisionNumber}.</p>`,
-    attachments: [{ filename: `${remisionNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
+    subject: `Remision ${serial}`,
+    html: `<p>Adjunto encontrará la remision ${serial}.</p>`,
+    attachments: [{ filename: `${serial}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
   }, 'remission');
 
   if (req.query.download === 'true') {
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${remisionNumber}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${serial}.pdf"`);
     return res.send(pdfBuffer);
   }
 
   res.json({
-    message: `Remision ${remisionNumber} enviada a ${clientEmail}`,
-    remisionNumber,
+    message: `Remision ${serial} enviada a ${clientEmail}`,
+    billSerial: serial,
     totals: computed,
   });
 });
@@ -250,17 +268,17 @@ router.post('/bill/preview', async (req, res) => {
     clientName, clientCity, clientEmail,
     clientAddress, clientPhone, clientId,
     createdAt = today(),
-    billItems, createdBy, remisionNumber, cashReceipt,
-    paymentMethod, 
+    billItems, createdBy, cashReceipt,
+    paymentMethod,
   } = req.body;
 
   const billNumber = `PREVIEW-${Date.now()}`;
   const computed = calculateBill({ ...req.body, billItems });
 
   const pdfBuffer = await generateBillPDF({
-    clientName, clientCompany, clientEmail,clientCity,
-    clientAddress, clientPhone, clientId, createdAt, 
-    billNumber, createdBy, remisionNumber, cashReceipt,
+    clientName, clientCompany, clientEmail, clientCity,
+    clientAddress, clientPhone, clientId, createdAt,
+    billNumber, createdBy, serial, cashReceipt,
     paymentMethod, comercialDiscount,
     billItems: computed.billItems,
     subtotal: computed.subtotal,

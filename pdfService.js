@@ -343,7 +343,7 @@ async function generateQuotationPDF({
 // BILL (REMISION) PDF
 // Input shape: { clientName, clientCity, clientEmail, clientAddress,
 //               clientPhone, clientId, createdAt, createdBy,
-//               remisionNumber, cashReceipt, paymentMethod,
+//               serial, cashReceipt, paymentMethod,
 //               billItems: [{ code, name, grammage, quantity, iva,
 //                             unitaryPrice, discount, subtotal }],
 //               subtotal, discount, totalIva, totalOperation }
@@ -351,15 +351,18 @@ async function generateQuotationPDF({
 async function generateBillPDF({
   clientName, clientCity, clientEmail, clientAddress,
   clientPhone, clientId, createdAt, createdBy,
-  remisionNumber, cashReceipt, paymentMethod,
+  serial, cashReceipt, paymentMethod,
   billItems,
   subtotal, discount, totalIva, totalOperation,
 }) {
+
+  console.log('[pdfService] Generating bill PDF for:', serial);
+
   const pdfDoc  = await PDFDocument.create();
   const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold= await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const newPage = makePageFactory(pdfDoc, fontReg, 'Remision ' + remisionNumber);
+  const newPage = makePageFactory(pdfDoc, fontReg, 'Remision ' + serial);
   const logoBuf = Buffer.from(LOGO_BASE64, 'base64');
   const logoImg = await pdfDoc.embedPng(logoBuf);
 
@@ -376,7 +379,7 @@ async function generateBillPDF({
   page.drawText('LA CASITA DEL SABOR S.A.S', {
     x: 52*MM, y: PH - 7*MM - 6, size: 10, font: fontBold, color: C.dark,
   });
-  page.drawText(`Remision: ${remisionNumber}`,  { x: 130*MM, y: PH - 7*MM - 6,  size: 9, font: fontBold, color: C.dark });
+  page.drawText(`Remision: ${serial}`,  { x: 130*MM, y: PH - 7*MM - 6,  size: 9, font: fontBold, color: C.dark });
   page.drawText(`Recibo de caja: ${cashReceipt || '-'}`, { x: 130*MM, y: PH - 13*MM - 6, size: 9, font: fontBold, color: C.dark });
   page.drawText(`Fecha: ${formatDate(createdAt)}`,         { x: 130*MM, y: PH - 19*MM - 6, size: 9, font: fontBold, color: C.dark });
 

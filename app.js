@@ -3,6 +3,7 @@ const express   = require('express');
 const mongoose  = require('mongoose');
 const cors     = require('cors');
 const cookieParser = require('cookie-parser');
+const { connectDB } = require('./db');
 
 const quotationRoutes = require('./quotation');
 const authRoutes      = require('./auth');
@@ -31,6 +32,7 @@ const dns = require('dns');
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Spice Quotation API running' });
@@ -51,6 +53,12 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+connectDB().then(() => {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}).catch(err => {
+  console.error('Failed to connect to MongoDB:', err);
+  process.exit(1);
+});
 
 module.exports = app;
