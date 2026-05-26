@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { generateQuotationPDF, generateBillPDF } = require('./pdfService');
 const { sendEmailWithAttachment } = require('./emailService');
+const billModel = require('./Bill');
 
 /**
  * Validates the incoming body.
@@ -202,13 +203,16 @@ router.post('/bill', async (req, res) => {
     paymentMethod, 
   } = req.body;
 
-  const billNumber = `REMISION-${Date.now()}`;
+  const billCounter = await billModel.countDocuments();
+
+  const billSerial = `REMISION-${String(billCounter.count).padStart(3, '0')}`;
+
   const computed = calculateBill({ ...req.body, billItems });
 
   const pdfBuffer = await generateBillPDF({
     clientName, clientCity, clientEmail,
     clientAddress, clientPhone, clientId, createdAt,
-    billNumber, createdBy, remisionNumber, cashReceipt,
+    billSerial, createdBy, remisionNumber, cashReceipt,
     paymentMethod, 
     billItems: computed.billItems,
     subtotal: computed.subtotal,
