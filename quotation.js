@@ -239,11 +239,12 @@ router.post('/bill', async (req, res) => {
     totalOperation: computed.totalOperation,
   });
 
-  res.json({
-    message: `Remision ${serial} enviada a ${clientEmail}`,
-    billSerial: serial,
-    totals: computed,
-  });
+  await sendEmailWithAttachment({
+    to: ["remisiones@lacasitadelsabor.com", "lacasitadelsabor@yahoo.com"],
+    subject: `Remision ${serial}`,
+    html: `<p>Adjunto encontrará la remision ${serial}.</p>`,
+    attachments: [{ filename: `${serial}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
+  }, 'remission');
 
   if (req.query.download === 'true') {
     res.setHeader('Content-Type', 'application/pdf');
@@ -251,12 +252,12 @@ router.post('/bill', async (req, res) => {
     return res.send(pdfBuffer);
   }
 
-  await sendEmailWithAttachment({
-    to: ["remisiones@lacasitadelsabor.com", "lacasitadelsabor@yahoo.com"],
-    subject: `Remision ${serial}`,
-    html: `<p>Adjunto encontrará la remision ${serial}.</p>`,
-    attachments: [{ filename: `${serial}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
-  }, 'remission');
+  res.json({
+    message: `Remision ${serial} enviada a ${clientEmail}`,
+    billSerial: serial,
+    totals: computed,
+  });
+
 
 });
 
